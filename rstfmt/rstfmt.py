@@ -21,6 +21,8 @@ import black
 import docutils
 import docutils.parsers.rst
 
+import sphinx.parsers
+
 T = TypeVar("T")
 
 
@@ -447,14 +449,8 @@ class Formatters:
     def title(node: docutils.nodes.title, ctx: FormatContext) -> line_iterator:
         text = " ".join(wrap_text(None, chain(fmt_children(node, ctx))))
         char = section_chars[ctx.section_depth - 1]
-        if ctx.section_depth <= max_overline_depth:
-            line = char * (len(text) + 2)
-            yield line
-            yield " " + text
-            yield line
-        else:
-            yield text
-            yield char * len(text)
+        yield text
+        yield char * len(text)
 
     @staticmethod
     def block_quote(node: docutils.nodes.block_quote, ctx: FormatContext) -> line_iterator:
@@ -488,49 +484,49 @@ class Formatters:
         yield from chain_intersperse("", fmt_children(node, ctx))
 
     # Tables.
-    @staticmethod
-    def row(node: docutils.nodes.row, ctx: FormatContext) -> line_iterator:
-        all_lines = [
-            chain_intersperse("", fmt_children(entry, ctx.with_width(w - 2)))
-            for entry, w in zip(node.children, ctx.colwidths)
-        ]
-        for line_group in itertools.zip_longest(*all_lines):
-            yield "|" + "|".join(
-                " " + (line or "").ljust(w - 2) + " " for line, w in zip(line_group, ctx.colwidths)
-            ) + "|"
+    # @staticmethod
+    # def row(node: docutils.nodes.row, ctx: FormatContext) -> line_iterator:
+    #     all_lines = [
+    #         chain_intersperse("", fmt_children(entry, ctx.with_width(w - 2)))
+    #         for entry, w in zip(node.children, ctx.colwidths)
+    #     ]
+    #     for line_group in itertools.zip_longest(*all_lines):
+    #         yield "|" + "|".join(
+    #             " " + (line or "").ljust(w - 2) + " " for line, w in zip(line_group, ctx.colwidths)
+    #         ) + "|"
 
-    @staticmethod
-    def tbody(node: docutils.nodes.tbody, ctx: FormatContext) -> line_iterator:
-        sep = "+" + "+".join("-" * w for w in ctx.colwidths) + "+"
-        yield from chain_intersperse(sep, fmt_children(node, ctx))
+    # @staticmethod
+    # def tbody(node: docutils.nodes.tbody, ctx: FormatContext) -> line_iterator:
+    #     sep = "+" + "+".join("-" * w for w in ctx.colwidths) + "+"
+    #     yield from chain_intersperse(sep, fmt_children(node, ctx))
 
-    thead = tbody
+    # thead = tbody
 
-    @staticmethod
-    def tgroup(node: docutils.nodes.tgroup, ctx: FormatContext) -> line_iterator:
-        ctx = ctx.with_colwidths(
-            [
-                c.attributes["colwidth"]
-                for c in node.children
-                if isinstance(c, docutils.nodes.colspec)
-            ]
-        )
-        sep = "+" + "+".join("-" * w for w in ctx.colwidths) + "+"
+    # @staticmethod
+    # def tgroup(node: docutils.nodes.tgroup, ctx: FormatContext) -> line_iterator:
+    #     ctx = ctx.with_colwidths(
+    #         [
+    #             c.attributes["colwidth"]
+    #             for c in node.children
+    #             if isinstance(c, docutils.nodes.colspec)
+    #         ]
+    #     )
+    #     sep = "+" + "+".join("-" * w for w in ctx.colwidths) + "+"
 
-        yield sep
-        for c in node.children:
-            if isinstance(c, docutils.nodes.colspec):
-                continue
-            if isinstance(c, docutils.nodes.thead):
-                yield from fmt(c, ctx)
-                yield "+" + "+".join("=" * w for w in ctx.colwidths) + "+"
-            if isinstance(c, docutils.nodes.tbody):
-                yield from fmt(c, ctx)
-                yield sep
+    #     yield sep
+    #     for c in node.children:
+    #         if isinstance(c, docutils.nodes.colspec):
+    #             continue
+    #         if isinstance(c, docutils.nodes.thead):
+    #             yield from fmt(c, ctx)
+    #             yield "+" + "+".join("=" * w for w in ctx.colwidths) + "+"
+    #         if isinstance(c, docutils.nodes.tbody):
+    #             yield from fmt(c, ctx)
+    #             yield sep
 
-    @staticmethod
-    def table(node: docutils.nodes.table, ctx: FormatContext) -> line_iterator:
-        yield from chain_intersperse("", fmt_children(node, ctx))
+    # @staticmethod
+    # def table(node: docutils.nodes.table, ctx: FormatContext) -> line_iterator:
+    #     yield from chain_intersperse("", fmt_children(node, ctx))
 
     # Footnotes.
     @staticmethod
@@ -747,11 +743,12 @@ def format_node(width: Optional[int], node: docutils.nodes.Node) -> str:
 
 def parse_string(s: str) -> docutils.nodes.document:
     parser = docutils.parsers.rst.Parser()
+    # parser = sphinx.parsers.RSTParser()
     settings = docutils.frontend.OptionParser(
         components=[docutils.parsers.rst.Parser]
     ).get_default_values()
     settings.report_level = docutils.utils.Reporter.SEVERE_LEVEL
-    settings.halt_level = docutils.utils.Reporter.WARNING_LEVEL
+    # settings.halt_level = docutils.utils.Reporter.WARNING_LEVEL
     settings.file_insertion_enabled = False
     doc = docutils.utils.new_document("", settings=settings)
     doc.reporter = IgnoreMessagesReporter("", settings.report_level, settings.halt_level)
